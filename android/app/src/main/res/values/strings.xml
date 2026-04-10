@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TimeLink</string>
+    <string name="title_activity_main">TimeLink</string>
+    <string name="package_name">com.cmp.timelink</string>
+    <string name="custom_url_scheme">com.cmp.timelink</string>
+</resources>

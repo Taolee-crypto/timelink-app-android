@@ -1,0 +1,14 @@
+{
+  "appId": "com.cmp.timelink",
+  "appName": "TimeLink",
+  "webDir": "www",
+  "server": {
+    "url": "https://timelink.digital",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}
