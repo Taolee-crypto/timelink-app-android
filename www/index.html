@@ -2,7 +2,128 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=https://timelink.digital">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TimeLink</title>
+<style>
+body{margin:0;background:#07070E;color:#fff;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}
+.logo{font-size:24px;font-weight:900;background:linear-gradient(135deg,#8B5CF6,#00E5A0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.status{font-size:13px;color:rgba(255,255,255,.5)}
+#btPopup{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center}
+#btPopup.show{display:flex}
+.bt-box{background:#0D0D1A;border:1px solid rgba(139,92,246,.3);border-radius:20px;padding:28px;width:88%;max-width:360px;text-align:center}
+.bt-icon{font-size:48px;margin-bottom:12px}
+.bt-title{font-size:18px;font-weight:700;margin-bottom:8px}
+.bt-desc{font-size:13px;color:rgba(255,255,255,.6);margin-bottom:20px;line-height:1.6}
+.bt-btn{width:100%;padding:14px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px}
+.bt-btn.primary{background:linear-gradient(135deg,#8B5CF6,#4a00e0);color:#fff}
+.bt-btn.secondary{background:rgba(255,255,255,.08);color:rgba(255,255,255,.6)}
+</style>
 </head>
-<body>loading...</body>
+<body>
+<div class="logo">⚡ TimeLink</div>
+<div class="status" id="statusMsg">연결 중...</div>
+
+<!-- 차량 블루투스 등록 팝업 -->
+<div id="btPopup">
+  <div class="bt-box">
+    <div class="bt-icon">🚗</div>
+    <div class="bt-title" id="btTitle">차량 블루투스 감지!</div>
+    <div class="bt-desc" id="btDesc">이 블루투스 기기를 내 차량으로 등록할까요?<br>등록하면 다음부터 자동으로 인카 모드로 전환됩니다.</div>
+    <button class="bt-btn primary" onclick="registerCar()">🚗 내 차량으로 등록</button>
+    <button class="bt-btn secondary" onclick="skipRegister()">건너뛰기</button>
+  </div>
+</div>
+
+<script type="module">
+import { BleClient } from '@capacitor-community/bluetooth-le';
+
+var _pendingDevice = null;
+var MY_CAR_KEY = 'tl_my_car_device';
+
+function getMyCarId(){
+  return localStorage.getItem(MY_CAR_KEY) || null;
+}
+
+function saveMyCarId(deviceId, name){
+  localStorage.setItem(MY_CAR_KEY, deviceId);
+  localStorage.setItem(MY_CAR_KEY+'_name', name||'내 차량');
+}
+
+window.registerCar = function(){
+  if(_pendingDevice){
+    saveMyCarId(_pendingDevice.deviceId, _pendingDevice.name);
+    document.getElementById('btPopup').classList.remove('show');
+    goIncar(_pendingDevice.name);
+  }
+}
+
+window.skipRegister = function(){
+  document.getElementById('btPopup').classList.remove('show');
+  goMain();
+}
+
+function goIncar(name){
+  document.getElementById('statusMsg').textContent = '🚗 ' + (name||'차량') + ' 연결됨 → 인카 모드';
+  setTimeout(function(){
+    location.href = 'https://timelink.digital/incar.html?bt=1';
+  }, 500);
+}
+
+function goMain(){
+  location.href = 'https://timelink.digital';
+}
+
+async function initBluetooth(){
+  try {
+    await BleClient.initialize({ androidNeverForLocation: true });
+    document.getElementById('statusMsg').textContent = '블루투스 감지 중...';
+
+    // 연결 이벤트
+    await BleClient.addListener('onConnected', function(device){
+      var myCarId = getMyCarId();
+      var name = device.name || device.deviceId || '알 수 없는 기기';
+
+      if(myCarId && device.deviceId === myCarId){
+        // 등록된 내 차량 → 바로 인카 모드
+        goIncar(localStorage.getItem(MY_CAR_KEY+'_name')||name);
+      } else {
+        // 새 블루투스 기기 → 등록 여부 물어보기
+        _pendingDevice = device;
+        document.getElementById('btTitle').textContent = name + ' 감지!';
+        document.getElementById('btDesc').textContent = '"' + name + '"을 내 차량으로 등록할까요?\n등록하면 다음부터 자동으로 인카 모드로 전환됩니다.';
+        document.getElementById('btPopup').classList.add('show');
+      }
+    });
+
+    // 연결 해제 이벤트
+    await BleClient.addListener('onDisconnected', function(device){
+      var myCarId = getMyCarId();
+      if(myCarId && device.deviceId === myCarId){
+        document.getElementById('statusMsg').textContent = '차량 블루투스 연결 해제됨';
+      }
+    });
+
+    document.getElementById('statusMsg').textContent = '준비됨 - 차량 블루투스를 연결하세요';
+    
+    // 이미 등록된 차량 있으면 메인으로
+    if(!getMyCarId()){
+      setTimeout(goMain, 2000);
+    } else {
+      document.getElementById('statusMsg').textContent = '등록된 차량: ' + (localStorage.getItem(MY_CAR_KEY+'_name')||'내 차량');
+      setTimeout(goMain, 1500);
+    }
+
+  } catch(e){
+    console.log('블루투스 초기화 실패:', e.message);
+    document.getElementById('statusMsg').textContent = '블루투스 사용 불가 - 일반 모드로 시작';
+    setTimeout(goMain, 1500);
+  }
+}
+
+document.addEventListener('deviceready', initBluetooth);
+window.addEventListener('load', function(){
+  setTimeout(initBluetooth, 1000);
+});
+</script>
+</body>
 </html>
